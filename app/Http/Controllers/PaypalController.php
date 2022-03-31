@@ -34,15 +34,28 @@ class PaypalController extends Controller
     public function processSuccess(Request $request){
         $provider = new ExpressCheckout;
         $response = $provider->getExpressCheckoutDetails($request['token']);
+        $cart = $this->getCheckoutData();
 
-        dd($response); // All response
+        if(isset($response['ACK']) && $response['ACK'] != null && in_array(strtoupper($response['ACK']), ['SUCCESS', 'SUCCESSWITHWARNING'])){
+            $createSubcription = $provider->createMonthlySubscription($response['TOKEN'], env('APP_PRICE'), $cart['subscription_desc']);
 
-        if(isset($response['ACK']) && $response['ACK'] != null && $response['ACK'] == 'Success'){
-            // Save data that you need in database //
+            // Here is all response data //
+            // dd($response);
+            // dd($createSubcription);
+
+            if (!empty($createSubcription['PROFILESTATUS']) && in_array($createSubcription['PROFILESTATUS'], ['ActiveProfile', 'PendingProfile']) && in_array(strtoupper($createSubcription['ACK']), ['SUCCESS', 'SUCCESSWITHWARNING'])) {
+                // Save data that you need in database //
+
+                return redirect()
+                    ->route('createpaypal')
+                    ->with('success', 'Your transaction is complete!');
+
+            }
 
             return redirect()
                 ->route('createpaypal')
-                ->with('success', 'Your transaction is complete!');
+                ->with('error', 'Sorry, something went wrong. Please try again later!');
+          
         } else {
             return redirect()
                 ->route('createpaypal')
